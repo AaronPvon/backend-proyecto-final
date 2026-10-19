@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.config import close_pool, create_pool
-from routes import health_routes
+from routes import auth_routes, health_routes
 
 load_dotenv()
 
@@ -40,5 +40,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# rutas
+# Rutas
+# Estado de la conexión con la bases de datos
 app.include_router(health_routes.router, prefix="/api/health", tags=["Health"])
+# Autenticación de usuarios (registro y login)
+app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth"])
