@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.config import close_pool, create_pool
-from routes import users_routes, auth_routes, health_routes
+from routes import groups_routes, users_routes, auth_routes, health_routes
 
 load_dotenv()
 
@@ -47,3 +47,5 @@ app.include_router(health_routes.router, prefix="/api/health", tags=["Health"])
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth"])
 # Obtiene el usuario logado
 app.include_router(users_routes.router, prefix="/api/users", tags=["Users"])
+# Obtiene toda la información de los grupos
+app.include_router(groups_routes.router, prefix="/api/groups", tags=["Groups"])

@@ -1,6 +1,6 @@
 import aiomysql
 
-from models.group_model import Balance, Group, GroupDetail, UserSummary
+from models.group_model import GroupCreate, Balance, Group, GroupDetail, UserSummary
 
 async def get_access_info(conn: aiomysql.Connection, group_id: int, user_id: int) -> dict | None:
     """Datos que necesita core/permissions.py para decidir si el usuario accede al grupo.
@@ -132,3 +132,33 @@ async def get_balances(conn: aiomysql.Connection, group_id: int) -> list[Balance
         )
         rows = await cursor.fetchall()
     return [Balance(**row) for row in rows]
+
+async def create_group(conn: aiomysql.Connection, user_id: int, group: GroupCreate) -> GroupDetail:
+    """Crea el grupo y añade a su creador como miembro accepted, en una transacción.
+    Son dos INSERT: si el segundo fallara sin transacción, quedaría un grupo
+    sin miembros que ni su creador podría ver. Con la transacción, o se
+    guardan los dos o ninguno.
+    """
+    # el pool trabaja con autocommit=True: begin() lo suspende hasta commit() o rollback()
+    await conn.begin()
+    try:
+        async with conn.cursor() as cursor:
+            await cursor.execute(
+                "INSERT INTO expense_groups (title, description, budget, currency, created_by) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (group.title, group.description, group.budget, group.currency, user_id),
+            )
+            group_id = cursor.lastrowid
+ 
+            await cursor.execute(
+                "INSERT INTO group_members (group_id, user_id, status) "
+                "VALUES (%s, %s, 'accepted')",
+                (group_id, user_id),
+            )
+        await conn.commit()
+    except Exception:
+        # no se oculta el error: se deshace la transacción y se vuelve a lanzar
+        await conn.rollback()
+        raise
+ 
+    return await get_detail(conn, group_id)
