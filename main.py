@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.config import close_pool, create_pool
-from routes import groups_routes, users_routes, auth_routes, health_routes
+from routes import members_routes, groups_routes, users_routes, auth_routes, health_routes
 
 load_dotenv()
 
@@ -49,3 +49,5 @@ app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(users_routes.router, prefix="/api/users", tags=["Users"])
 # Obtiene toda la información de los grupos
 app.include_router(groups_routes.router, prefix="/api/groups", tags=["Groups"])
+# Obtiene, crea y borra invitaciones de los grupos
+app.include_router(members_routes.router, prefix="/api/groups", tags=["Members"])

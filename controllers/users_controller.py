@@ -2,6 +2,8 @@ import aiomysql
 
 from models.user_model import User
 
+from models.group_model import UserSummary
+
 
 async def get_by_id(conn: aiomysql.Connection, user_id: int) -> User | None:
     """Devuelve el usuario con ese id, o None si no existe o está dado de baja."""
@@ -30,3 +32,18 @@ async def get_by_login(conn: aiomysql.Connection, login: str) -> dict | None:
             (login, login),
         )
         return await cursor.fetchone()
+
+async def get_summary_by_login(conn: aiomysql.Connection, login: str) -> UserSummary | None:
+    """Busca un usuario por email o nickname exacto y devuelve sus datos básicos (sin email).
+    Se usa para invitar a un usuario a un grupo. No devuelve el hash, a
+    diferencia de get_by_login, que es solo para el login.
+    """
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            "SELECT id, name, lastname, nickname "
+            "FROM users "
+            "WHERE (email = %s OR nickname = %s) AND deleted_at IS NULL",
+            (login, login),
+        )
+        row = await cursor.fetchone()
+    return UserSummary(**row) if row else None
