@@ -1,6 +1,7 @@
 import aiomysql
 
-from models.group_model import GroupCreate, Balance, Group, GroupDetail, UserSummary
+from models.group_model import Balance, Group, GroupCreate, GroupDetail, UserSummary
+
 
 async def get_access_info(conn: aiomysql.Connection, group_id: int, user_id: int) -> dict | None:
     """Datos que necesita core/permissions.py para decidir si el usuario accede al grupo.
@@ -40,8 +41,9 @@ def build_group_data(row: dict) -> dict:
             nickname=row["creator_nickname"],
         ),
     }
- 
- 
+
+
+
 async def get_user_groups(conn: aiomysql.Connection, user_id: int, status: str) -> list[Group]:
     """Grupos en los que el usuario es miembro accepted, filtrados por estado.
     Activos: los creados más recientemente primero.
@@ -62,8 +64,8 @@ async def get_user_groups(conn: aiomysql.Connection, user_id: int, status: str) 
         )
         rows = await cursor.fetchall()
     return [Group(**build_group_data(row)) for row in rows]
- 
- 
+
+
 async def get_detail(conn: aiomysql.Connection, group_id: int) -> GroupDetail | None:
     """Detalle del grupo: datos, creador, miembros accepted y total gastado."""
     async with conn.cursor() as cursor:
@@ -83,7 +85,7 @@ async def get_detail(conn: aiomysql.Connection, group_id: int) -> GroupDetail | 
         row = await cursor.fetchone()
         if row is None:
             return None
- 
+
         # miembros accepted, por orden alfabético
         await cursor.execute(
             "SELECT u.id, u.name, u.lastname, u.nickname "
@@ -94,16 +96,21 @@ async def get_detail(conn: aiomysql.Connection, group_id: int) -> GroupDetail | 
             (group_id,),
         )
         members = await cursor.fetchall()
- 
+
     return GroupDetail(
         **build_group_data(row),
         members=[UserSummary(**member) for member in members],
         total_spent=row["total_spent"],
     )
- 
- 
-async def get_balances(conn: aiomysql.Connection, group_id: int) -> list[Balance]:
+
+
+async def get_balances(
+    conn: aiomysql.Connection, group_id: int, user_id: int | None = None
+) -> list[Balance]:
     """Saldo de cada miembro (accepted y left) del grupo. Se calcula, nunca se guarda.
+    Con user_id, devuelve solo el saldo de ese miembro (para salir o expulsar).
+    La condición (%s IS NULL OR gm.user_id = %s) evita construir el SQL a trozos:
+    si user_id es None se cumple siempre y devuelve todos los saldos.
     saldo = pagado − su parte + liquidaciones enviadas − liquidaciones recibidas
     Positivo: le deben. Negativo: debe. Los saldos de un grupo suman 0.
     """
@@ -127,11 +134,13 @@ async def get_balances(conn: aiomysql.Connection, group_id: int) -> list[Balance
             "FROM group_members gm "
             "JOIN users u ON u.id = gm.user_id "
             "WHERE gm.group_id = %s AND gm.status IN ('accepted', 'left') "
+            "  AND (%s IS NULL OR gm.user_id = %s) "
             "ORDER BY gm.user_id",
-            (group_id,),
+            (group_id, user_id, user_id),
         )
         rows = await cursor.fetchall()
     return [Balance(**row) for row in rows]
+
 
 async def create_group(conn: aiomysql.Connection, user_id: int, group: GroupCreate) -> GroupDetail:
     """Crea el grupo y añade a su creador como miembro accepted, en una transacción.
@@ -149,7 +158,7 @@ async def create_group(conn: aiomysql.Connection, user_id: int, group: GroupCrea
                 (group.title, group.description, group.budget, group.currency, user_id),
             )
             group_id = cursor.lastrowid
- 
+
             await cursor.execute(
                 "INSERT INTO group_members (group_id, user_id, status) "
                 "VALUES (%s, %s, 'accepted')",
@@ -160,5 +169,5 @@ async def create_group(conn: aiomysql.Connection, user_id: int, group: GroupCrea
         # no se oculta el error: se deshace la transacción y se vuelve a lanzar
         await conn.rollback()
         raise
- 
+
     return await get_detail(conn, group_id)
