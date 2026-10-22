@@ -1,0 +1,76 @@
+---
+title: A Pachas - Diagrama entidad-relación (modelo v5)
+---
+erDiagram
+    users {
+        INT id PK
+        VARCHAR name
+        VARCHAR lastname
+        VARCHAR nickname UK
+        VARCHAR email UK
+        VARCHAR password_hash
+        DATETIME created_at
+        DATETIME updated_at
+        DATETIME deleted_at "NULL, futura baja de cuenta"
+    }
+
+    expense_groups {
+        INT id PK
+        VARCHAR title
+        TEXT description "NULL"
+        DECIMAL budget "NULL, presupuesto opcional"
+        CHAR currency "EUR por defecto"
+        ENUM status "active | closed"
+        DATETIME closed_at "NULL si está activo"
+        INT created_by FK "creador y único gestor"
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    group_members {
+        INT group_id PK, FK
+        INT user_id PK, FK
+        ENUM status "pending | accepted | left"
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    expenses {
+        INT id PK
+        INT group_id FK
+        INT paid_by FK "miembro que pagó"
+        VARCHAR title
+        TEXT description "NULL"
+        DECIMAL amount "mayor que 0"
+        ENUM split_type "equal | custom"
+        DATE expense_date
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    expense_shares {
+        INT expense_id PK, FK
+        INT user_id PK, FK
+        DECIMAL amount "mayor o igual que 0"
+    }
+
+    settlements {
+        INT id PK
+        INT group_id FK
+        INT from_user_id FK "quien paga la deuda"
+        INT to_user_id FK "quien la cobra"
+        DECIMAL amount "mayor que 0"
+        DATETIME created_at
+        DATETIME updated_at
+    }
+
+    users          ||--o{ expense_groups : "crea"
+    users          ||--o{ group_members  : "participa en"
+    expense_groups ||--o{ group_members  : "tiene"
+    expense_groups ||--o{ expenses       : "contiene"
+    group_members  ||--o{ expenses       : "paga"
+    expenses       ||--|{ expense_shares : "se reparte en"
+    users          ||--o{ expense_shares : "asume"
+    expense_groups ||--o{ settlements    : "registra"
+    group_members  ||--o{ settlements    : "envía"
+    group_members  ||--o{ settlements    : "recibe"
