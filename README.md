@@ -206,6 +206,11 @@ python -c "import secrets; print(secrets.token_hex(32))"
 ### 6. Arrancar la API
 
 ```bash
+fastapi dev main.py
+```
+ó
+
+```bash
 uvicorn main:app --reload
 ```
 
