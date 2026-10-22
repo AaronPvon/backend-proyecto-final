@@ -21,7 +21,7 @@ El proyecto se basa en el enunciado **"Compartir gastos"**.
 | Fase 1: base y autenticación | ✅ Completada |
 | Fase 2: grupos (lectura, permisos y creación) | ✅ Completada |
 | Fase 3: invitaciones y miembros | ✅ Completada |
-| Fase 4: gastos y repartos | 🚧 En curso: listar y crear gastos |
+| Fase 4: gastos y repartos | ✅ Listar y crear gastos (editar y borrar, después de la entrega) |
 | Fase 5: liquidaciones | ⏳ Pendiente |
 | Fase 6: cierre y reapertura de grupos | ⏳ Pendiente |
 | Despliegue | ⏳ Pendiente |
@@ -265,8 +265,41 @@ Todas las rutas llevan el prefijo `/api`. Las privadas necesitan la cabecera `Au
 | `GET` | `/api/invitations` | Con sesión | Invitaciones pendientes del usuario, con el título, la descripción y el creador de cada grupo. |
 | `POST` | `/api/invitations/{group_id}/accept` | Invitado | Acepta la invitación y pasa a ser miembro. Responde 204. |
 | `DELETE` | `/api/invitations/{group_id}` | Invitado | Rechaza la invitación (se borra). Responde 204. |
+| `GET` | `/api/groups/{group_id}/expenses` | Miembro | Gastos del grupo con quién los pagó y sus repartos, los más recientes primero. |
+| `POST` | `/api/groups/{group_id}/expenses` | Creador | Crea un gasto con sus repartos. Responde 201 con el gasto. |
 
-Las acciones del creador (invitar, anular y expulsar) y la salida de un miembro solo se permiten con el grupo activo.
+Las acciones del creador (invitar, anular, expulsar y crear gastos) y la salida de un miembro solo se permiten con el grupo activo.
+
+### Crear un gasto
+
+Los participantes van en una sola lista, `shares`, para los dos tipos de reparto:
+
+```json
+// POST /api/groups/1/expenses — a partes iguales: la API calcula cada parte
+{
+  "title": "Cena del sábado",
+  "amount": "20.00",
+  "paid_by": 1,
+  "expense_date": "2026-10-22",
+  "split_type": "equal",
+  "shares": [{ "user_id": 1 }, { "user_id": 2 }, { "user_id": 3 }]
+}
+
+// Personalizado: cada parte lleva su importe, y entre todas suman el del gasto
+{
+  "title": "Gasolina",
+  "amount": "50.00",
+  "paid_by": 1,
+  "split_type": "custom",
+  "shares": [
+    { "user_id": 1, "amount": "10.00" },
+    { "user_id": 2, "amount": "20.00" },
+    { "user_id": 3, "amount": "20.00" }
+  ]
+}
+```
+
+La respuesta incluye el gasto con su pagador y la parte de cada participante (en el primer ejemplo, 6,67 + 6,67 + 6,66). `expense_date` es opcional (por defecto, hoy) y nunca puede ser futura. El pagador y los participantes tienen que ser miembros del grupo.
 
 ### Login
 

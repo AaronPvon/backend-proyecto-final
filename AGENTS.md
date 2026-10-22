@@ -159,7 +159,7 @@ Los permisos se comprueban siempre en la API, no solo en el front-end, centraliz
 ### Gastos y repartos
 
 - Solo el creador del grupo registra, edita y elimina gastos.
-- Cada gasto indica quién lo pagó (`paid_by`), que debe ser un miembro `accepted`.
+- Cada gasto indica quién lo pagó (`paid_by`), que debe ser un miembro `accepted`. Si el pagador o algún participante no es miembro `accepted`, la API responde 422 ("El pagador debe ser miembro del grupo" o "Todos los participantes deben ser miembros del grupo").
 - Hay tres modos de reparto:
   1. **Iguales entre todos**: el importe se divide a partes iguales entre todos los miembros `accepted` (en la interfaz aparecen todos marcados por defecto).
   2. **Iguales entre algunos**: el importe se divide a partes iguales solo entre los participantes seleccionados.
@@ -170,6 +170,7 @@ Los permisos se comprueban siempre en la API, no solo en el front-end, centraliz
 - Ninguna parte puede ser de 0 €. En el modo personalizado, cada parte debe ser mayor que 0. En el modo igual, si a algún participante le tocara 0 € (por ejemplo, 0,02 € entre 3), la API responde 422 "El importe es demasiado pequeño para repartirlo entre N personas".
 - Los gastos en los que aparece un miembro `left` (como pagador o como participante) no se pueden editar ni borrar: 409 "El gasto incluye a alguien que ya no es miembro del grupo y no se puede modificar". Si se pudieran, el saldo de ese ex miembro dejaría de ser 0 y, como ya no es miembro, no podría saldarlo.
 - La API valida, dentro de una transacción, que la suma de las partes sea exactamente igual al importe del gasto.
+- Al crear un gasto, los participantes se envían en una sola lista `shares` para los dos tipos de reparto: con `split_type = 'equal'`, cada parte lleva solo el `user_id` (la API calcula los importes); con `split_type = 'custom'`, el `user_id` y su `amount`. Un participante no puede aparecer dos veces.
 - En los repartos iguales no exactos, cada participante recibe primero la parte redondeada hacia abajo al céntimo, y los céntimos sobrantes se reparten de uno en uno empezando por el participante con menor `user_id`. Ejemplos: 10 € entre 3 → 3,34 + 3,33 + 3,33; 20 € entre 3 → 6,67 + 6,67 + 6,66.
 
 ### Liquidaciones
@@ -319,6 +320,12 @@ backend-proyecto-final/   # raíz del repositorio del back
 - Rutas de invitaciones y miembros (fase 3):
   - `routes/members_routes.py` (prefijo `/api/groups`): `GET /{group_id}/invitations` (miembros), `POST /{group_id}/invitations` (creador, body `{"login": "<email o nickname>"}`, 201 con la invitación), `DELETE /{group_id}/invitations/{user_id}` (creador, anula, 204), `POST /{group_id}/leave` (miembro, 204) y `DELETE /{group_id}/members/{user_id}` (creador, expulsa, 204).
   - `routes/invitations_routes.py` (prefijo `/api/invitations`): `GET ""` (mis invitaciones pendientes), `POST /{group_id}/accept` (aceptar, 204) y `DELETE /{group_id}` (rechazar, 204).
+
+- Rutas de gastos (fase 4), en `routes/expenses_routes.py` (etiqueta `Expenses`, prefijo `/api/groups`): `GET /{group_id}/expenses` (miembros, también con el grupo cerrado) y `POST /{group_id}/expenses` (creador y grupo activo, 201 con el gasto).
+- Cada gasto se devuelve con su pagador (`paid_by`) y sus repartos (`shares`), con el usuario anidado como `UserSummary`, igual que el creador de un grupo. El listado va de la fecha del gasto más reciente a la más antigua (y, en la misma fecha, del último registrado al primero).
+- `get_expenses` hace dos consultas en total (los gastos y todos sus repartos), no una por gasto, y admite un `expense_id` opcional con la misma condición `(%s IS NULL OR e.id = %s)` que `get_balances`: así `create_expense` devuelve el gasto creado con la misma consulta que el listado.
+- Las reglas que dependen de varios campos del formulario (participantes repetidos, importes según el tipo de reparto y suma de las partes en `custom`) se validan en el modelo con un `model_validator`, y Pydantic responde 422 con una lista de errores. Las que necesitan la base de datos (pagador y participantes `accepted`) y el reparto de céntimos están en el controlador, que responde 422 con un texto.
+- `create_expense` bloquea la fila del grupo (`FOR UPDATE`) y vuelve a comprobar con ella bloqueada que el grupo sigue activo.
 
 ### Despliegue
 
@@ -585,8 +592,8 @@ Fase 3 del back-end (invitaciones y miembros) ✅ completada, en dos bloques (A:
    - 3b. Invitaciones desde el invitado: `get_user_invitations`, `accept_invitation` y `reject_invitation` en `controllers/members_controller.py`, y `get_user_invitations`, `accept_invitation` (204) y `reject_invitation` (204) en `routes/invitations_routes.py` (etiqueta `Invitations`, prefijo `/api/invitations`). No usan los permisos de grupo: cada consulta lleva `WHERE user_id = <usuario logado>`, así que cada usuario solo gestiona sus invitaciones y cualquier otra da 404. Probado en Swagger (23 pruebas, con un usuario nuevo que rechaza). ✅ Completado.
 4. Bloque B: `remove_member` en `controllers/members_controller.py` (función compartida, en una transacción que bloquea el grupo), y `leave_group` (`POST /api/groups/{group_id}/leave`, 204) y `delete_member` (`DELETE /api/groups/{group_id}/members/{user_id}`, 204) en `routes/members_routes.py`. `get_balances` admite un `user_id` opcional para el saldo de un solo miembro. Probado también el bloqueo `FOR UPDATE`. Probado en Swagger (23 pruebas: salidas no permitidas, salida correcta, reinvitación y expulsiones). ✅ Completado.
 
-Fase 4 del back-end (gastos y repartos) en curso, paso a paso:
+Fase 4 del back-end (gastos y repartos), parte de la entrega completada, paso a paso:
 
-1. `models/expense_model.py` y la función `split_equally` (reparto de céntimos) en `controllers/expenses_controller.py`. ⏳ Plan en revisión.
-2. Listar y crear gastos: controlador y rutas (`GET` y `POST /api/groups/{group_id}/expenses`).
-3. Editar y borrar gastos (`PUT` y `DELETE /api/groups/{group_id}/expenses/{expense_id}`).
+1. `models/expense_model.py` (`ShareCreate`, `ExpenseCreate`, `ExpenseShare` y `Expense`) y la función `split_equally` (reparto de céntimos) en `controllers/expenses_controller.py`. ✅ Completado.
+2. Listar y crear gastos: `get_expenses` y `create_expense` en `controllers/expenses_controller.py`, y `get_group_expenses` y `create_expense` (201) en `routes/expenses_routes.py`. Probado contra MySQL 8 con los datos de prueba (37 pruebas: repartos de céntimos, los tres modos, validaciones 422, permisos 403/404/409 y saldos que siguen sumando 0). ✅ Completado.
+3. Editar y borrar gastos (`PUT` y `DELETE /api/groups/{group_id}/expenses/{expense_id}`). ⏳ Después de la entrega.

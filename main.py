@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.config import close_pool, create_pool
-from routes import invitations_routes, members_routes, groups_routes, users_routes, auth_routes, health_routes
+from routes import invitations_routes, members_routes, groups_routes, users_routes, auth_routes, health_routes, expenses_routes
 
 load_dotenv()
 
@@ -51,3 +51,5 @@ app.include_router(users_routes.router, prefix="/api/users", tags=["Users"])
 app.include_router(groups_routes.router, prefix="/api/groups", tags=["Groups"])
 app.include_router(members_routes.router, prefix="/api/groups", tags=["Members"])
 app.include_router(invitations_routes.router, prefix="/api/invitations", tags=["Invitations"])
+# Gastos de un grupo y sus repartos
+app.include_router(expenses_routes.router, prefix="/api/groups", tags=["Expenses"])
