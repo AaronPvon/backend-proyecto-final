@@ -545,6 +545,7 @@ Cambio de planificación por la fecha de entrega (23/10/2026, antes de las 00:00
 - Alcance de la entrega: front-end de autenticación, grupos (listado, creación y detalle con saldos), invitaciones y gastos (listado y creación); back-end de la fase 4 reducida (`GET` y `POST /api/groups/{group_id}/expenses`).
 - Quedan pendientes para después de la entrega: editar y borrar gastos, liquidaciones (fase 5), cierre y reapertura (fase 6), salir y expulsar desde la interfaz. El filtro de grupos cerrados se adelantó y ya está hecho (bloque 2 del front-end).
 - Durante la entrega se prueba directamente en Swagger y en el navegador, sin scripts de pruebas temporales.
+- Los dos README incluyen una sección "Alcance de esta entrega" con lo que funciona de principio a fin y lo que queda pendiente, para que no se lea como hecho lo que solo está diseñado.
 - Proyecto separado en dos repositorios (`backend-proyecto-final` y `frontend-proyecto-final`), cada uno con su `README.md` y su `AGENTS.md` (ver Repositorios del proyecto). ✅ Completado.
 
 ## Back-end

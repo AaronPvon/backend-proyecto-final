@@ -28,13 +28,19 @@ El proyecto se basa en el enunciado **"Compartir gastos"**.
 
 El estado del front-end está en su [repositorio](https://github.com/AaronPvon/frontend-proyecto-final#estado-del-proyecto).
 
+### Alcance de esta entrega
+
+Funciona de principio a fin, en la API y en la interfaz: registro e inicio de sesión; creación de grupos y listado de grupos activos y cerrados; detalle del grupo con miembros, saldos y presupuesto; invitaciones (invitar, anular, aceptar y rechazar); y gastos (listado y creación con los tres modos de reparto), con el cálculo automático de lo que debe cada miembro.
+
+Queda para después de la entrega: las liquidaciones (registrar un pago entre miembros para saldar una deuda), editar y borrar gastos, y cerrar y reabrir grupos. Salir de un grupo y expulsar a un miembro ya funcionan en la API, pero aún no tienen botones en la interfaz.
+
 ## Funcionalidades
 
 ### Requisitos mínimos del enunciado
 - Registro e inicio de sesión de usuarios.
 - Creación de grupos con título, descripción y presupuesto opcional.
 - El creador del grupo invita al resto de usuarios.
-- El creador registra los gastos y las liquidaciones, y la app calcula automáticamente lo que debe cada miembro.
+- El creador registra los gastos, y la app calcula automáticamente lo que debe cada miembro.
 - El resto de miembros solo visualizan los gastos, las deudas y los saldos del grupo.
 
 ### Funcionalidades previstas para más adelante
@@ -45,6 +51,8 @@ El estado del front-end está en su [repositorio](https://github.com/AaronPvon/f
 - Instalación en el móvil como PWA.
 
 ## Cómo funciona
+
+Esta sección describe el diseño completo de la app; lo que aún no está hecho se indica en [Alcance de esta entrega](#alcance-de-esta-entrega).
 
 ### Grupos y miembros
 Cualquier usuario registrado puede crear todos los grupos que necesite. El creador es el único que gestiona el grupo: invita a usuarios (buscándolos por email o nickname), registra gastos y liquidaciones, expulsa miembros y cierra o reabre el grupo.
